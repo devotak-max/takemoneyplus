@@ -1,3 +1,4 @@
+import Link from "next/link";
 import SwipeDemo from "./components/SwipeDemo";
 import WaitlistForm from "./components/WaitlistForm";
 
@@ -24,12 +25,20 @@ function Header() {
         </div>
         <span className="text-lg font-semibold tracking-tight text-ink">Monetheus</span>
       </div>
-      <a
-        href="#waitlist"
-        className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-ink-soft"
-      >
-        Entrar na lista
-      </a>
+      <div className="flex items-center gap-2">
+        <Link
+          href="/entrar"
+          className="rounded-full px-4 py-2 text-sm font-medium text-ink-soft transition hover:bg-canvas"
+        >
+          Entrar
+        </Link>
+        <Link
+          href="/cadastrar"
+          className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-ink-soft"
+        >
+          Criar conta
+        </Link>
+      </div>
     </header>
   );
 }
