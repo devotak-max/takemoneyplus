@@ -2,7 +2,7 @@ import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
-const DATA_DIR = join(process.cwd(), "data");
+const DATA_DIR = process.env.DATA_DIR ?? join(process.cwd(), "data");
 mkdirSync(DATA_DIR, { recursive: true });
 
 const db = new Database(join(DATA_DIR, "monetheus.db"));
