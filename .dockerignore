@@ -1,0 +1,15 @@
+.git
+.gitignore
+.dockerignore
+Dockerfile
+fly.toml
+node_modules
+.next
+data
+shots
+scripts
+*.log
+.env
+.env.*
+.DS_Store
+README*
