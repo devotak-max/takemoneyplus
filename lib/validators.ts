@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { SUPPORTED_CURRENCIES } from "./cap";
+import { MAX_SPREAD_PCT, SUPPORTED_CURRENCIES } from "./cap";
 
 const cpfDigits = (v: string) => v.replace(/\D/g, "");
 
@@ -37,6 +37,18 @@ export const SignupSchema = z.object({
   city: z.string().min(2).max(80),
 });
 
+export const CompleteProfileSchema = z.object({
+  cpf: z
+    .string()
+    .transform(cpfDigits)
+    .refine(isValidCpf, "CPF inválido"),
+  phone: z
+    .string()
+    .transform((v) => v.replace(/\D/g, ""))
+    .refine((v) => v.length >= 10 && v.length <= 11, "Telefone inválido"),
+  city: z.string().min(2).max(80),
+});
+
 export const LoginSchema = z.object({
   email: z.string().email().max(254),
   password: z.string().min(1).max(100),
@@ -47,11 +59,10 @@ const currencyEnum = z.enum(SUPPORTED_CURRENCIES);
 export const CreateAdSchema = z.object({
   currency: currencyEnum,
   amount: z.number().positive().max(10_000_000),
-  unitPriceBrl: z.number().positive().max(10_000),
+  spreadPct: z.number().min(-MAX_SPREAD_PCT).max(MAX_SPREAD_PCT).default(0),
   city: z.string().min(2).max(80),
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
-  validDays: z.number().int().min(1).max(30),
 });
 
 export const InterestSchema = z.object({
@@ -63,6 +74,10 @@ export const DiscoverQuerySchema = z.object({
   currency: currencyEnum.optional(),
   lat: z.coerce.number().min(-90).max(90).optional(),
   lng: z.coerce.number().min(-180).max(180).optional(),
-  radiusKm: z.coerce.number().positive().max(20000).optional(),
+  radiusKm: z.coerce.number().positive().max(500).optional(),
   limit: z.coerce.number().int().positive().max(50).optional(),
+});
+
+export const SendMessageSchema = z.object({
+  body: z.string().trim().min(1).max(2000),
 });

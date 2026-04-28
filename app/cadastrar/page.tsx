@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import SignupForm from "../components/SignupForm";
+import SsoButtons from "../components/SsoButtons";
 import { getCurrentUser } from "@/lib/auth";
 
 export default function SignupPage() {
@@ -17,6 +18,7 @@ export default function SignupPage() {
         </p>
       </div>
       <SignupForm />
+      <SsoButtons label="ou cadastre-se com" />
       <p className="text-center text-sm text-ink-muted">
         Já tem conta?{" "}
         <Link href="/entrar" className="font-semibold text-brand hover:text-brand-dark">

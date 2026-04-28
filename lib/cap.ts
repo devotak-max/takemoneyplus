@@ -23,7 +23,7 @@ export const CURRENCY_LABELS: Record<Currency, string> = {
 };
 
 // Tetos por moeda equivalentes a USD 500 (Lei 14.286/2021).
-// Conservadores; revisar quando integrarmos cotação ao vivo.
+// Conservadores; revisar periodicamente conforme PTAX.
 export const MAX_AMOUNT_PER_CURRENCY: Record<Currency, number> = {
   USD: 500,
   EUR: 460,
@@ -34,6 +34,9 @@ export const MAX_AMOUNT_PER_CURRENCY: Record<Currency, number> = {
   CHF: 450,
   ARS: 500000,
 };
+
+// Variação máxima permitida em torno da PTAX para o preço de venda do anúncio.
+export const MAX_SPREAD_PCT = 0.02; // ±2%
 
 export function isSupportedCurrency(value: string): value is Currency {
   return (SUPPORTED_CURRENCIES as readonly string[]).includes(value);

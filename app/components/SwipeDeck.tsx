@@ -12,6 +12,8 @@ type Ad = {
   currency: Currency;
   amount: number;
   unitPriceBrl: number;
+  spreadPct: number;
+  rateDate: string | null;
   city: string;
   sellerName: string;
   sellerInitials: string;
@@ -23,17 +25,30 @@ type Origin = { lat: number; lng: number };
 type GeoStatus = "loading" | "ok" | "denied" | "unsupported";
 
 const fmtBrl = (v: number) =>
-  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 });
+  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 4 });
 
 const SWIPE_THRESHOLD_PX = 110;
+const RADIUS_STORAGE_KEY = "monetheus.radius";
+const DEFAULT_RADIUS_KM = 30;
+const MIN_RADIUS_KM = 5;
+const MAX_RADIUS_KM = 100;
+
+function loadStoredRadius(): number {
+  if (typeof window === "undefined") return DEFAULT_RADIUS_KM;
+  const v = Number(window.localStorage.getItem(RADIUS_STORAGE_KEY));
+  if (!Number.isFinite(v) || v < MIN_RADIUS_KM || v > MAX_RADIUS_KM) return DEFAULT_RADIUS_KM;
+  return v;
+}
 
 export default function SwipeDeck() {
   const [geoStatus, setGeoStatus] = useState<GeoStatus>("loading");
   const [origin, setOrigin] = useState<Origin | null>(null);
   const [currency, setCurrency] = useState<Currency | "ALL">("ALL");
+  const [radiusKm, setRadiusKm] = useState<number>(DEFAULT_RADIUS_KM);
   const [ads, setAds] = useState<Ad[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [topIndex, setTopIndex] = useState(0);
+  const [matchToast, setMatchToast] = useState<string | null>(null);
   const [drag, setDrag] = useState<{ x: number; y: number; active: boolean }>({
     x: 0,
     y: 0,
@@ -42,6 +57,16 @@ export default function SwipeDeck() {
   const [exiting, setExiting] = useState<{ direction: "like" | "skip" } | null>(null);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    setRadiusKm(loadStoredRadius());
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(RADIUS_STORAGE_KEY, String(radiusKm));
+    }
+  }, [radiusKm]);
 
   useEffect(() => {
     if (!("geolocation" in navigator)) {
@@ -66,6 +91,7 @@ export default function SwipeDeck() {
       params.set("lat", origin.lat.toString());
       params.set("lng", origin.lng.toString());
     }
+    params.set("radiusKm", String(radiusKm));
     params.set("limit", "30");
 
     setAds(null);
@@ -78,7 +104,7 @@ export default function SwipeDeck() {
       })
       .then((data: { ads: Ad[] }) => setAds(data.ads))
       .catch(() => setError("Não foi possível carregar ofertas."));
-  }, [currency, origin, geoStatus]);
+  }, [currency, origin, geoStatus, radiusKm]);
 
   const visibleAds = useMemo(() => (ads ? ads.slice(topIndex, topIndex + 3) : []), [ads, topIndex]);
   const top = visibleAds[0];
@@ -90,7 +116,15 @@ export default function SwipeDeck() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ adId: top.id, action }),
-    }).catch(() => {});
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { matchId?: number } | null) => {
+        if (action === "like" && data?.matchId) {
+          setMatchToast("Match! Abra suas conversas para combinar o encontro.");
+          setTimeout(() => setMatchToast(null), 4000);
+        }
+      })
+      .catch(() => {});
     setTimeout(() => {
       setTopIndex((i) => i + 1);
       setDrag({ x: 0, y: 0, active: false });
@@ -160,13 +194,36 @@ export default function SwipeDeck() {
         <GeoStatusLabel status={geoStatus} />
       </div>
 
+      <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
+        <div className="flex items-center justify-between text-sm">
+          <label htmlFor="radius" className="font-medium text-ink">
+            Raio de busca
+          </label>
+          <span className="text-ink-muted">{radiusKm} km</span>
+        </div>
+        <input
+          id="radius"
+          type="range"
+          min={MIN_RADIUS_KM}
+          max={MAX_RADIUS_KM}
+          step={1}
+          value={radiusKm}
+          onChange={(e) => setRadiusKm(Number(e.target.value))}
+          className="mt-2 w-full accent-brand"
+        />
+        <div className="flex justify-between text-[11px] text-ink-muted">
+          <span>{MIN_RADIUS_KM} km</span>
+          <span>{MAX_RADIUS_KM} km</span>
+        </div>
+      </div>
+
       <div className="relative mx-auto h-[500px] w-full max-w-sm">
         {ads === null && !error && (
           <Placeholder text="Carregando ofertas…" />
         )}
         {error && <Placeholder text={error} tone="error" />}
         {ads !== null && !top && (
-          <Placeholder text="Você viu todas as ofertas por aqui. Volte mais tarde ou amplie o filtro." />
+          <Placeholder text="Você viu todas as ofertas por aqui. Aumente o raio ou volte mais tarde." />
         )}
 
         {visibleAds
@@ -191,6 +248,12 @@ export default function SwipeDeck() {
               />
             );
           })}
+
+        {matchToast && (
+          <div className="pointer-events-none absolute inset-x-0 -top-3 mx-auto w-fit rounded-full bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white shadow-lg">
+            {matchToast}
+          </div>
+        )}
       </div>
 
       <div className="flex items-center justify-center gap-5">
@@ -272,6 +335,13 @@ function Card({
     ? `translateY(${stackOffset * 8}px) scale(${1 - stackOffset * 0.04})`
     : undefined;
 
+  const spreadLabel =
+    ad.spreadPct > 0.0001
+      ? `+${(ad.spreadPct * 100).toFixed(1)}%`
+      : ad.spreadPct < -0.0001
+        ? `${(ad.spreadPct * 100).toFixed(1)}%`
+        : "PTAX";
+
   return (
     <div
       ref={refSetter}
@@ -308,14 +378,27 @@ function Card({
             </div>
           </div>
           <div className="rounded-xl bg-canvas p-3">
-            <div className="text-[11px] uppercase tracking-wide text-ink-muted">Preço unitário</div>
+            <div className="flex items-center justify-between">
+              <div className="text-[11px] uppercase tracking-wide text-ink-muted">
+                Preço unitário
+              </div>
+              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                {spreadLabel}
+              </span>
+            </div>
             <div className="mt-0.5 font-semibold text-ink">{fmtBrl(ad.unitPriceBrl)}</div>
             <div className="mt-1 text-xs text-ink-muted">
-              Total: {fmtBrl(ad.amount * ad.unitPriceBrl)}
+              Total: {(ad.amount * ad.unitPriceBrl).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+              {ad.rateDate && (
+                <>
+                  {" · ref. PTAX "}
+                  {new Date(ad.rateDate).toLocaleDateString("pt-BR")}
+                </>
+              )}
             </div>
           </div>
           <div className="rounded-xl bg-emerald-50 p-3 ring-1 ring-emerald-200/60 text-xs text-emerald-800">
-            Expira em {new Date(ad.validUntil).toLocaleDateString("pt-BR")}
+            Expira em {new Date(ad.validUntil).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
           </div>
         </div>
 

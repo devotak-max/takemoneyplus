@@ -34,5 +34,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Anúncio não encontrado." }, { status: 404 });
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, matchId: result.matchId ?? null });
 }

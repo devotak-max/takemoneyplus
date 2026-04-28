@@ -7,6 +7,7 @@ const LINKS = [
   { href: "/descobrir", label: "Descobrir" },
   { href: "/anunciar", label: "Anunciar" },
   { href: "/meus-anuncios", label: "Meus anúncios" },
+  { href: "/conversas", label: "Conversas" },
 ];
 
 export default function NavBar({ userName }: { userName: string }) {

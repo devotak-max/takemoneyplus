@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   }
 
   const user = findUserByEmail(parsed.data.email);
-  if (!user || !verifyPassword(parsed.data.password, user.passwordHash)) {
+  if (!user || !user.passwordHash || !verifyPassword(parsed.data.password, user.passwordHash)) {
     return NextResponse.json({ error: "Credenciais inválidas." }, { status: 401 });
   }
 

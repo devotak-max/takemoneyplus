@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, updateUserLocation } from "@/lib/auth";
-import { createAd, discoverAds } from "@/lib/ads";
+import { createAd, discoverAds, renewActiveAds } from "@/lib/ads";
 import { MAX_AMOUNT_PER_CURRENCY, isSupportedCurrency } from "@/lib/cap";
 import { CreateAdSchema, DiscoverQuerySchema } from "@/lib/validators";
 import { FALLBACK_LOCATION } from "@/lib/geo";
+import { ensureFreshRates, getAllLatestRates } from "@/lib/ptax";
 
 export const runtime = "nodejs";
 
@@ -37,16 +38,22 @@ export async function POST(request: Request) {
     );
   }
 
+  await ensureFreshRates();
   const ad = createAd({
     userId: user.id,
     currency: data.currency,
     amount: data.amount,
-    unitPriceBrl: data.unitPriceBrl,
+    spreadPct: data.spreadPct,
     city: data.city,
     lat: data.lat,
     lng: data.lng,
-    validDays: data.validDays,
   });
+  if ("error" in ad) {
+    return NextResponse.json(
+      { error: "Cotação PTAX indisponível no momento. Tente novamente em instantes." },
+      { status: 503 },
+    );
+  }
   updateUserLocation(user.id, data.lat, data.lng);
   return NextResponse.json({ ok: true, ad });
 }
@@ -60,6 +67,9 @@ export async function GET(request: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Parâmetros inválidos." }, { status: 422 });
   }
+
+  await ensureFreshRates();
+  renewActiveAds();
 
   const origin =
     parsed.data.lat !== undefined && parsed.data.lng !== undefined
@@ -84,6 +94,7 @@ export async function GET(request: Request) {
     ads,
     origin,
     caps: MAX_AMOUNT_PER_CURRENCY,
+    rates: getAllLatestRates(),
     currency: parsed.data.currency && isSupportedCurrency(parsed.data.currency) ? parsed.data.currency : null,
   });
 }

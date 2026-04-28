@@ -5,6 +5,7 @@ import NavBar from "../components/NavBar";
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const user = getCurrentUser();
   if (!user) redirect("/entrar");
+  if (!user.cpf || !user.phone || !user.city) redirect("/completar-cadastro");
   return (
     <div className="min-h-screen bg-canvas">
       <NavBar userName={user.fullName} />
